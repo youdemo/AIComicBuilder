@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { Plus, Loader2, Sparkles } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
 
 export function CreateProjectDialog() {
   const t = useTranslations();
@@ -28,7 +29,7 @@ export function CreateProjectDialog() {
     if (!title.trim()) return;
     setLoading(true);
 
-    const res = await fetch("/api/projects", {
+    const res = await apiFetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),

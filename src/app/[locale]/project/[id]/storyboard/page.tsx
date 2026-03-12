@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { VideoRatioPicker } from "@/components/editor/video-ratio-picker";
+import { apiFetch } from "@/lib/api-fetch";
 
 type StepStatus = "pending" | "active" | "completed";
 
@@ -121,7 +122,7 @@ export default function StoryboardPage() {
     setGenerating(true);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,7 +151,7 @@ export default function StoryboardPage() {
     setGeneratingFrames(true);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +173,7 @@ export default function StoryboardPage() {
     setGeneratingVideos(true);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

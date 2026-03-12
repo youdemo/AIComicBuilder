@@ -10,6 +10,7 @@ import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore } from "@/stores/model-store";
 import { Sparkles, Loader2 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface CharacterCardProps {
   id: string;
@@ -36,7 +37,7 @@ export function CharacterCard({
   const [lightbox, setLightbox] = useState(false);
 
   async function handleSave() {
-    await fetch(`/api/projects/${projectId}/characters/${id}`, {
+    await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: editName, description: editDesc }),
@@ -47,7 +48,7 @@ export function CharacterCard({
   async function handleGenerateImage() {
     setGenerating(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/generate`, {
+      const response = await apiFetch(`/api/projects/${projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

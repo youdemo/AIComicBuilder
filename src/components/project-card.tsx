@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, Clock, Sparkles, CircleCheck, FileText, Trash2 } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,7 +56,7 @@ export function ProjectCard({ id, title, status, createdAt }: ProjectCardProps) 
   async function handleDelete() {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
       if (res.ok) {
         setDeleteOpen(false);
         router.refresh();

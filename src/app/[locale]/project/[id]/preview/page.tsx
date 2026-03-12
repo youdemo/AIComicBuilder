@@ -15,6 +15,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function PreviewPage() {
   const t = useTranslations();
@@ -49,7 +50,7 @@ export default function PreviewPage() {
     setAssembling(true);
     checkedUrl.current = null; // reset so next check re-validates
     try {
-      const res = await fetch(`/api/projects/${project.id}/generate`, {
+      const res = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "video_assemble" }),

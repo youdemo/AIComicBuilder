@@ -8,6 +8,7 @@ import { useModelStore } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
 import { Sparkles, Save, Loader2, FileText, Lightbulb } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
+import { apiFetch } from "@/lib/api-fetch";
 
 export function ScriptEditor() {
   const t = useTranslations();
@@ -21,7 +22,7 @@ export function ScriptEditor() {
   async function handleSave() {
     if (!project) return;
     setSaving(true);
-    await fetch(`/api/projects/${project.id}`, {
+    await apiFetch(`/api/projects/${project.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idea: project.idea, script: project.script }),
@@ -37,7 +38,7 @@ export function ScriptEditor() {
     updateScript("");
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

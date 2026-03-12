@@ -1,17 +1,24 @@
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getTranslations } from "next-intl/server";
+import { cookies } from "next/headers";
 import { ProjectCard } from "@/components/project-card";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
-import { Clapperboard, Sparkles } from "lucide-react";
+import { Clapperboard } from "lucide-react";
 
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
-  const allProjects = await db
-    .select()
-    .from(projects)
-    .orderBy(desc(projects.createdAt));
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("ai_comic_uid")?.value ?? "";
+
+  const allProjects = userId
+    ? await db
+        .select()
+        .from(projects)
+        .where(eq(projects.userId, userId))
+        .orderBy(desc(projects.createdAt))
+    : [];
 
   return (
     <div className="animate-page-in space-y-6">

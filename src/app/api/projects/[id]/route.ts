@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, characters, shots, dialogues } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
+import { getUserIdFromRequest } from "@/lib/get-user-id";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+async function resolveProject(id: string, userId: string) {
   const [project] = await db
     .select()
     .from(projects)
-    .where(eq(projects.id, id));
+    .where(and(eq(projects.id, id), eq(projects.userId, userId)));
+  return project ?? null;
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const userId = getUserIdFromRequest(request);
+  const project = await resolveProject(id, userId);
 
   if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -60,6 +67,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const userId = getUserIdFromRequest(request);
+  const project = await resolveProject(id, userId);
+
+  if (!project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = (await request.json()) as Partial<{
     title: string;
     idea: string;
@@ -73,18 +87,21 @@ export async function PATCH(
     .where(eq(projects.id, id))
     .returning();
 
-  if (!updated) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
   return NextResponse.json(updated);
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const userId = getUserIdFromRequest(request);
+  const project = await resolveProject(id, userId);
+
+  if (!project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await db.delete(projects).where(eq(projects.id, id));
   return new NextResponse(null, { status: 204 });
 }

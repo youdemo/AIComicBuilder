@@ -9,6 +9,7 @@ import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore } from "@/stores/model-store";
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { VideoRatioPicker } from "@/components/editor/video-ratio-picker";
+import { apiFetch } from "@/lib/api-fetch";
 import {
   Loader2,
   ChevronDown,
@@ -79,7 +80,7 @@ export function ShotCard({
   const variant = statusVariant[status] || "outline";
 
   async function handleSave() {
-    await fetch(`/api/projects/${projectId}/shots/${id}`, {
+    await apiFetch(`/api/projects/${projectId}/shots/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: editPrompt }),
@@ -89,7 +90,7 @@ export function ShotCard({
   async function handleGenerateFrames() {
     setGeneratingFrames(true);
     try {
-      await fetch(`/api/projects/${projectId}/generate`, {
+      await apiFetch(`/api/projects/${projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -108,7 +109,7 @@ export function ShotCard({
   async function handleGenerateVideo() {
     setGeneratingVideo(true);
     try {
-      await fetch(`/api/projects/${projectId}/generate`, {
+      await apiFetch(`/api/projects/${projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

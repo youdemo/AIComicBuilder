@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { Users, Sparkles, ImageIcon, Loader2 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function CharactersPage() {
   const t = useTranslations();
@@ -27,7 +28,7 @@ export default function CharactersPage() {
     setExtracting(true);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -56,7 +57,7 @@ export default function CharactersPage() {
     setGeneratingImages(true);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

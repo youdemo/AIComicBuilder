@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Character {
   id: string;
@@ -57,7 +58,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   fetchProject: async (id: string) => {
     set({ loading: true });
-    const res = await fetch(`/api/projects/${id}`);
+    const res = await apiFetch(`/api/projects/${id}`);
     const data = await res.json();
     set({ project: data, loading: false });
   },

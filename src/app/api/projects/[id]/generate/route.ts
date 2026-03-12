@@ -5,6 +5,7 @@ import type { ProviderConfig } from "@/lib/ai/ai-sdk";
 import { db } from "@/lib/db";
 import { projects, characters, shots, dialogues } from "@/lib/db/schema";
 import { eq, asc, and, lt, desc } from "drizzle-orm";
+import { getUserIdFromRequest } from "@/lib/get-user-id";
 import { ulid } from "ulid";
 import { enqueueTask } from "@/lib/task-queue";
 import type { TaskType } from "@/lib/task-queue";
@@ -46,6 +47,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: projectId } = await params;
+  const userId = getUserIdFromRequest(request);
+
+  // Verify project ownership
+  const [ownerCheck] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
+  if (!ownerCheck) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = (await request.json()) as {
     action: string;
     payload?: Record<string, unknown>;
