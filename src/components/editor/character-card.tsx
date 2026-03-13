@@ -11,6 +11,7 @@ import { useModelStore } from "@/stores/model-store";
 import { Sparkles, Loader2 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { apiFetch } from "@/lib/api-fetch";
+import { useModelGuard } from "@/hooks/use-model-guard";
 
 interface CharacterCardProps {
   id: string;
@@ -35,6 +36,7 @@ export function CharacterCard({
   const [editDesc, setEditDesc] = useState(description);
   const [generating, setGenerating] = useState(false);
   const [lightbox, setLightbox] = useState(false);
+  const imageGuard = useModelGuard("image");
 
   async function handleSave() {
     await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
@@ -46,6 +48,7 @@ export function CharacterCard({
   }
 
   async function handleGenerateImage() {
+    if (!imageGuard()) return;
     setGenerating(true);
     try {
       const response = await apiFetch(`/api/projects/${projectId}/generate`, {
