@@ -21,6 +21,8 @@ import { InlineModelPicker } from "@/components/editor/model-selector";
 import { VideoRatioPicker } from "@/components/editor/video-ratio-picker";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
+import { GenerationModeTab } from "@/components/editor/generation-mode-tab";
+import Link from "next/link";
 
 type StepStatus = "pending" | "active" | "completed";
 
@@ -106,23 +108,37 @@ export default function StoryboardPage() {
   ).length;
   const shotsWithVideo = project.shots.filter((s) => s.videoUrl).length;
 
+  const generationMode = (project.generationMode || "keyframe") as "keyframe" | "reference";
+  const charactersWithRefs = project.characters.filter((c) => c.referenceImage);
+  const hasReferenceImages = charactersWithRefs.length > 0;
+
   // Determine step statuses
   const step1Status: StepStatus =
     totalShots > 0 ? "completed" : "active";
   const step2Status: StepStatus =
+    generationMode === "reference"
+      ? "completed"
+      : totalShots === 0
+        ? "pending"
+        : shotsWithFrames === totalShots
+          ? "completed"
+          : "active";
+  const step3Status: StepStatus =
     totalShots === 0
       ? "pending"
-      : shotsWithFrames === totalShots
-        ? "completed"
-        : "active";
-  const step3Status: StepStatus =
-    shotsWithFrames === 0 || totalShots === 0
-      ? "pending"
-      : shotsWithVideo === totalShots
-        ? "completed"
-        : shotsWithFrames > 0
-          ? "active"
-          : "pending";
+      : generationMode === "reference"
+        ? shotsWithVideo === totalShots
+          ? "completed"
+          : totalShots > 0
+            ? "active"
+            : "pending"
+        : shotsWithFrames === 0
+          ? "pending"
+          : shotsWithVideo === totalShots
+            ? "completed"
+            : shotsWithFrames > 0
+              ? "active"
+              : "pending";
 
   const anyGenerating = generating || generatingFrames || generatingVideos;
 
@@ -212,6 +228,34 @@ export default function StoryboardPage() {
     fetchProject(project.id);
   }
 
+  async function handleBatchGenerateReferenceVideos() {
+    if (!project) return;
+    if (!videoGuard()) return;
+    setGeneratingVideos(true);
+
+    try {
+      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "batch_reference_video",
+          payload: { ratio: videoRatio },
+          modelConfig: getModelConfig(),
+        }),
+      });
+      const data = await response.json() as { results: Array<{ status: string }> };
+      if (data.results?.some((r) => r.status === "error")) {
+        toast.warning(t("common.batchPartialFailed"));
+      }
+    } catch (err) {
+      console.error("Batch reference video error:", err);
+      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+    }
+
+    setGeneratingVideos(false);
+    fetchProject(project.id);
+  }
+
   return (
     <div className="animate-page-in space-y-6">
       {/* Page header */}
@@ -248,6 +292,35 @@ export default function StoryboardPage() {
 
       {/* ── 3-Step Workflow Pipeline ── */}
       <div className="rounded-2xl border border-[--border-subtle] bg-white p-4">
+        {/* Generation mode tab */}
+        <GenerationModeTab />
+
+        {/* Reference image mode: character indicator */}
+        {generationMode === "reference" && (
+          <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+            hasReferenceImages
+              ? "bg-violet-50 text-violet-700 border border-violet-200"
+              : "bg-amber-50 text-amber-700 border border-amber-200"
+          }`}>
+            {hasReferenceImages ? (
+              <>
+                🖼️ {t("project.referenceCharactersLabel", {
+                  names: charactersWithRefs.map((c) => c.name).join("、"),
+                  count: charactersWithRefs.length,
+                })}
+              </>
+            ) : (
+              <>
+                ⚠️ {t("project.noReferenceImages")}
+                {" — "}
+                <Link href="../characters" className="underline">
+                  {t("project.characters")}
+                </Link>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Step indicators */}
         <div className="flex items-center gap-1">
           <WorkflowStep
@@ -317,8 +390,8 @@ export default function StoryboardPage() {
               : t("project.generateShots")}
           </Button>
 
-          {/* Step 2: Batch generate frames */}
-          {totalShots > 0 && (
+          {/* Step 2: Batch generate frames — keyframe mode only */}
+          {generationMode === "keyframe" && totalShots > 0 && (
             <>
               <InlineModelPicker capability="image" />
               <Button
@@ -340,13 +413,18 @@ export default function StoryboardPage() {
           )}
 
           {/* Step 3: Batch generate videos */}
-          {totalShots > 0 && shotsWithFrames > 0 && (
+          {totalShots > 0 &&
+            (generationMode === "reference" ? hasReferenceImages : shotsWithFrames > 0) && (
             <>
               <InlineModelPicker capability="video" />
               <VideoRatioPicker value={videoRatio} onChange={setVideoRatio} />
               <Button
-                onClick={handleBatchGenerateVideos}
-                disabled={anyGenerating}
+                onClick={
+                  generationMode === "reference"
+                    ? handleBatchGenerateReferenceVideos
+                    : handleBatchGenerateVideos
+                }
+                disabled={anyGenerating || (generationMode === "reference" && !hasReferenceImages)}
                 variant={step3Status === "completed" ? "outline" : "default"}
                 size="sm"
               >
@@ -357,7 +435,9 @@ export default function StoryboardPage() {
                 )}
                 {generatingVideos
                   ? t("common.generating")
-                  : t("project.batchGenerateVideos")}
+                  : generationMode === "reference"
+                    ? t("project.batchGenerateReferenceVideos")
+                    : t("project.batchGenerateVideos")}
               </Button>
             </>
           )}
@@ -400,6 +480,8 @@ export default function StoryboardPage() {
               batchGeneratingFrames={generatingFrames}
               batchGeneratingVideo={generatingVideos}
               characterDescriptions={characterDescriptions}
+              generationMode={generationMode}
+              batchGeneratingReferenceVideo={generationMode === "reference" ? generatingVideos : undefined}
             />
           ))}
         </div>
