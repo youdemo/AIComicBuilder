@@ -21,61 +21,39 @@ export class SeedanceProvider implements VideoProvider {
   private apiKey: string;
   private baseUrl: string;
   private model: string;
+  private referenceModel: string;
   private uploadDir: string;
 
   constructor(params?: {
     apiKey?: string;
     baseUrl?: string;
     model?: string;
+    referenceModel?: string;
     uploadDir?: string;
   }) {
     this.apiKey = params?.apiKey || process.env.SEEDANCE_API_KEY || "";
     this.baseUrl = (
       params?.baseUrl ||
       process.env.SEEDANCE_BASE_URL ||
-      "https://ark.cn-beijing.volces.com"
+      "https://ark.cn-beijing.volces.com/api/v3"
     ).replace(/\/+$/, "");
     this.model =
       params?.model || process.env.SEEDANCE_MODEL || "doubao-seedance-1-5-pro-250528";
+    this.referenceModel =
+      params?.referenceModel ||
+      process.env.SEEDANCE_REFERENCE_MODEL ||
+      "doubao-seedance-1-0-lite-i2v-250428";
     this.uploadDir =
       params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
 
   async generateVideo(params: VideoGenerateParams): Promise<string> {
-    if (!("firstFrame" in params)) {
-      throw new Error("Seedance provider only supports keyframe (image2video) mode");
-    }
-    const firstFrameUrl = toDataUrl(params.firstFrame!);
-    const lastFrameUrl = toDataUrl(params.lastFrame!);
-
-    // Build content array per Seedance API spec
-    const content: Record<string, unknown>[] = [
-      {
-        type: "text",
-        text: params.prompt,
-      },
-      {
-        type: "image_url",
-        image_url: { url: firstFrameUrl },
-        role: "first_frame",
-      },
-      {
-        type: "image_url",
-        image_url: { url: lastFrameUrl },
-        role: "last_frame",
-      },
-    ];
-
-    const body: Record<string, unknown> = {
-      model: this.model,
-      content,
-      duration: params.duration || 5,
-      ratio: params.ratio || "16:9",
-      watermark: false,
-    };
+    const body = "firstFrame" in params
+      ? this.buildKeyframeBody(params as VideoGenerateParams & { firstFrame: string; lastFrame: string })
+      : this.buildReferenceBody(params as VideoGenerateParams & { charRefImages: string[] });
 
     console.log(
-      `[Seedance] Submitting task: model=${this.model}, duration=${body.duration}, ratio=${body.ratio}`
+      `[Seedance] Submitting task: model=${body.model}, duration=${body.duration}, ratio=${body.ratio}`
     );
 
     const submitResponse = await fetch(
@@ -102,7 +80,6 @@ export class SeedanceProvider implements VideoProvider {
 
     const videoUrl = await this.pollForResult(submitResult.id);
 
-    // Download video to local storage
     const videoResponse = await fetch(videoUrl);
     const buffer = Buffer.from(await videoResponse.arrayBuffer());
     const filename = `${ulid()}.mp4`;
@@ -112,6 +89,44 @@ export class SeedanceProvider implements VideoProvider {
     fs.writeFileSync(filepath, buffer);
 
     return filepath;
+  }
+
+  private buildKeyframeBody(params: VideoGenerateParams & { firstFrame: string; lastFrame: string }): Record<string, unknown> {
+    const firstFrameUrl = toDataUrl(params.firstFrame);
+    const lastFrameUrl = toDataUrl(params.lastFrame);
+
+    return {
+      model: this.model,
+      content: [
+        { type: "text", text: params.prompt },
+        { type: "image_url", image_url: { url: firstFrameUrl }, role: "first_frame" },
+        { type: "image_url", image_url: { url: lastFrameUrl }, role: "last_frame" },
+      ],
+      duration: params.duration || 5,
+      ratio: params.ratio || "16:9",
+      watermark: false,
+    };
+  }
+
+  private buildReferenceBody(params: VideoGenerateParams & { charRefImages: string[] }): Record<string, unknown> {
+    // Prepend [图N] references to prompt so the model knows which image is which
+    const imageRefs = params.charRefImages.map((_, i) => `[图${i + 1}]`).join("");
+    const textWithRefs = `${imageRefs}${params.prompt}`;
+
+    return {
+      model: this.referenceModel,
+      content: [
+        { type: "text", text: textWithRefs },
+        ...params.charRefImages.map((imgPath) => ({
+          type: "image_url",
+          image_url: { url: toDataUrl(imgPath) },
+          role: "reference_image",
+        })),
+      ],
+      duration: params.duration || 5,
+      ratio: params.ratio || "16:9",
+      watermark: false,
+    };
   }
 
   private async pollForResult(taskId: string): Promise<string> {
