@@ -149,7 +149,7 @@ export async function POST(
   }
 
   if (action === "video_assemble") {
-    return handleVideoAssembleSync(projectId);
+    return handleVideoAssembleSync(projectId, payload);
   }
 
   // Image/video generation - keep in task queue
@@ -800,28 +800,48 @@ async function handleSingleFrameGenerate(
     .map((c) => c.referenceImage)
     .filter(Boolean) as string[];
 
-  // Find previous shot's last frame for continuity — same version only
-  const [previousShot] = await db
-    .select()
-    .from(shots)
-    .where(and(
-      eq(shots.projectId, projectId),
-      eq(shots.versionId, shot.versionId!),
-      lt(shots.sequence, shot.sequence)
-    ))
-    .orderBy(desc(shots.sequence))
-    .limit(1);
+  // Find previous shot's last frame for continuity — same version only (if shot has a version)
+  const [previousShot] = shot.versionId
+    ? await db
+        .select()
+        .from(shots)
+        .where(and(
+          eq(shots.projectId, projectId),
+          eq(shots.versionId, shot.versionId),
+          lt(shots.sequence, shot.sequence)
+        ))
+        .orderBy(desc(shots.sequence))
+        .limit(1)
+    : await db
+        .select()
+        .from(shots)
+        .where(and(
+          eq(shots.projectId, projectId),
+          lt(shots.sequence, shot.sequence)
+        ))
+        .orderBy(desc(shots.sequence))
+        .limit(1);
 
-  const [nextShot] = await db
-    .select()
-    .from(shots)
-    .where(and(
-      eq(shots.projectId, projectId),
-      eq(shots.versionId, shot.versionId!),
-      gt(shots.sequence, shot.sequence)
-    ))
-    .orderBy(asc(shots.sequence))
-    .limit(1);
+  const [nextShot] = shot.versionId
+    ? await db
+        .select()
+        .from(shots)
+        .where(and(
+          eq(shots.projectId, projectId),
+          eq(shots.versionId, shot.versionId),
+          gt(shots.sequence, shot.sequence)
+        ))
+        .orderBy(asc(shots.sequence))
+        .limit(1)
+    : await db
+        .select()
+        .from(shots)
+        .where(and(
+          eq(shots.projectId, projectId),
+          gt(shots.sequence, shot.sequence)
+        ))
+        .orderBy(asc(shots.sequence))
+        .limit(1);
 
   const ai = resolveImageProvider(modelConfig, versionedUploadDir);
 
@@ -1527,13 +1547,16 @@ async function handleBatchReferenceVideo(
 
 // --- video_assemble: synchronous ffmpeg concat + subtitle burn ---
 
-async function handleVideoAssembleSync(projectId: string) {
+async function handleVideoAssembleSync(projectId: string, payload?: Record<string, unknown>) {
   const [project] = await db.select({ generationMode: projects.generationMode }).from(projects).where(eq(projects.id, projectId));
 
+  const versionId = payload?.versionId as string | undefined;
   const projectShots = await db
     .select()
     .from(shots)
-    .where(eq(shots.projectId, projectId))
+    .where(versionId
+      ? and(eq(shots.projectId, projectId), eq(shots.versionId, versionId))
+      : eq(shots.projectId, projectId))
     .orderBy(asc(shots.sequence));
 
   const isReference = project?.generationMode === "reference";
