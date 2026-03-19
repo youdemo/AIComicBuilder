@@ -15,6 +15,7 @@ export const MODEL_MAX_DURATIONS: Record<string, number> = {
 
 export const DEFAULT_MAX_DURATION = 12;
 
+/** Returns the maximum supported video duration (seconds) for the given model ID. Unknown models return 12. */
 export function getModelMaxDuration(modelId?: string | null): number {
   if (!modelId) return DEFAULT_MAX_DURATION;
 
@@ -24,7 +25,7 @@ export function getModelMaxDuration(modelId?: string | null): number {
     return MODEL_MAX_DURATIONS[lowerModelId];
   }
 
-  for (const key of Object.keys(MODEL_MAX_DURATIONS)) {
+  for (const key of Object.keys(MODEL_MAX_DURATIONS).sort((a, b) => b.length - a.length)) {
     if (lowerModelId.startsWith(key) || key.startsWith(lowerModelId)) {
       return MODEL_MAX_DURATIONS[key];
     }
