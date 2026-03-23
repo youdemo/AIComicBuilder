@@ -56,7 +56,7 @@ export const characters = sqliteTable("characters", {
   description: text("description").default(""),
   visualHint: text("visual_hint").default(""),
   referenceImage: text("reference_image"),
-  scope: text("scope").notNull().default("main"),
+  scope: text("scope", { enum: ["main", "guest"] }).notNull().default("main"),
   episodeId: text("episode_id").references(() => episodes.id, {
     onDelete: "cascade",
   }),
