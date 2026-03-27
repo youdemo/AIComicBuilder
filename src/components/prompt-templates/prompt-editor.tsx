@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, Layers } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PresetDialog } from "./preset-dialog";
 
 const CATEGORIES = ["all", "script", "character", "shot", "frame", "video"] as const;
 
@@ -38,6 +39,7 @@ export function PromptEditor() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
 
   // Fetch registry + overrides on mount
   useEffect(() => {
@@ -162,6 +164,15 @@ export function PromptEditor() {
         ))}
       </div>
 
+      {/* Preset dialog */}
+      {selectedPromptKey && (
+        <PresetDialog
+          open={presetDialogOpen}
+          onOpenChange={setPresetDialogOpen}
+          promptKey={selectedPromptKey}
+        />
+      )}
+
       {/* Three-column editor */}
       <div className="flex min-h-[600px] overflow-hidden rounded-2xl border border-[--border-subtle] bg-white">
         {/* Left column: Prompt list */}
@@ -266,6 +277,16 @@ export function PromptEditor() {
 
                   {mode === "slots" && (
                     <>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => setPresetDialogOpen(true)}
+                        disabled={!selectedPromptKey}
+                      >
+                        <Layers className="h-3 w-3" />
+                        {t("presets.openPresets")}
+                      </Button>
+
                       <Button
                         size="xs"
                         variant="ghost"
